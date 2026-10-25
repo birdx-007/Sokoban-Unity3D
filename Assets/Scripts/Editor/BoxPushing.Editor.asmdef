@@ -1,0 +1,19 @@
+{
+    "name": "BoxPushing.Editor",
+    "rootNamespace": "BoxPushing.Editor",
+    "references": [
+        "BoxPushing.Core",
+        "BoxPushing.Gameplay"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
