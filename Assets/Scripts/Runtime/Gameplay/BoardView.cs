@@ -117,7 +117,7 @@ namespace BoxPushing.Gameplay
                     boxRoot,
                     BoardGeometry.CellToWorld(position, level.Width, level.Height) + new Vector3(0f, boxScale * 0.5f, 0f),
                     new Vector3(boxScale, boxScale, boxScale),
-                    Palette.Box,
+                    StyledRole.Box,
                     PrimitiveFactory.GetCube());
 
                 boxes[position] = box;
@@ -150,7 +150,7 @@ namespace BoxPushing.Gameplay
                             staticRoot,
                             BoardGeometry.CellToWorld(cell, level.Width, level.Height) + new Vector3(0f, wallHeight * 0.5f, 0f),
                             new Vector3(BoardGeometry.CellSize, wallHeight, BoardGeometry.CellSize),
-                            Palette.Wall,
+                            StyledRole.Wall,
                             PrimitiveFactory.GetCube());
                     }
                     else
@@ -161,7 +161,7 @@ namespace BoxPushing.Gameplay
                             staticRoot,
                             BoardGeometry.CellToWorld(cell, level.Width, level.Height) + new Vector3(0f, tileThickness * 0.5f, 0f),
                             new Vector3(BoardGeometry.CellSize, tileThickness, BoardGeometry.CellSize),
-                            isGoal ? Palette.Goal : Palette.Floor,
+                            isGoal ? StyledRole.Goal : StyledRole.Floor,
                             PrimitiveFactory.GetCube());
                     }
                 }
@@ -177,7 +177,7 @@ namespace BoxPushing.Gameplay
                     boxRoot,
                     BoardGeometry.CellToWorld(position, level.Width, level.Height) + new Vector3(0f, boxScale * 0.5f, 0f),
                     new Vector3(boxScale, boxScale, boxScale),
-                    Palette.Box,
+                    StyledRole.Box,
                     PrimitiveFactory.GetCube());
 
                 boxes[position] = box;
@@ -191,7 +191,7 @@ namespace BoxPushing.Gameplay
             if (renderer == null)
                 return;
 
-            renderer.sharedMaterial = PrimitiveFactory.GetMaterial(IsGoalAt(position) ? Palette.BoxOnGoal : Palette.Box);
+            PrimitiveFactory.ApplyRole(renderer, IsGoalAt(position) ? StyledRole.BoxOnGoal : StyledRole.Box);
         }
     }
 }

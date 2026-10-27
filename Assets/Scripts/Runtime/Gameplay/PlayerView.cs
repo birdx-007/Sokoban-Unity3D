@@ -34,7 +34,7 @@ namespace BoxPushing.Gameplay
                 modelGo.transform,
                 new Vector3(0f, bodyScale * 0.5f, 0f),
                 new Vector3(bodyScale, bodyScale, bodyScale),
-                Palette.PlayerBody,
+                StyledRole.PlayerBody,
                 PrimitiveFactory.GetCube());
 
             GameObject faceGo = PrimitiveFactory.Create(
@@ -42,7 +42,7 @@ namespace BoxPushing.Gameplay
                 modelGo.transform,
                 new Vector3(0f, bodyScale * 0.62f, bodyScale * 0.42f),
                 new Vector3(bodyScale * 0.45f, bodyScale * 0.35f, bodyScale * 0.2f),
-                Palette.PlayerFace,
+                StyledRole.PlayerFace,
                 PrimitiveFactory.GetCube());
 
             view.face = faceGo.transform;

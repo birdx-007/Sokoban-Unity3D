@@ -1,22 +1,20 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace BoxPushing.Gameplay
 {
     /// <summary>
-    /// Placeholder solid-color geometry. Uses built-in primitive meshes and an unlit
-    /// color material; stylized shading arrives in a later phase.
+    /// Creates stylized board geometry. Meshes come from built-in primitives; shading uses
+    /// the shared toon material with per-instance color/emission applied through a
+    /// MaterialPropertyBlock by <see cref="StylizedController"/>.
     /// </summary>
     public static class PrimitiveFactory
     {
-        private static readonly Dictionary<Color, Material> materialCache = new Dictionary<Color, Material>();
-
         public static GameObject Create(
             string name,
             Transform parent,
             Vector3 localPosition,
             Vector3 localScale,
-            Color color,
+            StyledRole role,
             Mesh mesh)
         {
             var go = new GameObject(name);
@@ -27,26 +25,53 @@ namespace BoxPushing.Gameplay
             var filter = go.AddComponent<MeshFilter>();
             filter.sharedMesh = mesh;
             var renderer = go.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = GetMaterial(color);
+
+            if (StylizedController.Instance != null)
+            {
+                renderer.sharedMaterial = StylizedController.Instance.ToonMaterial;
+                StylizedController.Instance.Register(renderer, role);
+            }
+            else
+            {
+                renderer.sharedMaterial = GetFallbackMaterial(Palette.ForRole(role));
+            }
+
             return go;
+        }
+
+        public static void ApplyRole(Renderer renderer, StyledRole role)
+        {
+            if (renderer == null)
+                return;
+
+            if (StylizedController.Instance != null)
+            {
+                StylizedController.Instance.SetRole(renderer, role);
+            }
+            else
+            {
+                renderer.sharedMaterial = GetFallbackMaterial(Palette.ForRole(role));
+            }
         }
 
         public static Mesh GetCube() => Resources.GetBuiltinResource<Mesh>("Cube.fbx");
 
-        public static Material GetMaterial(Color color)
+        private static Material fallbackMaterial;
+
+        private static Material GetFallbackMaterial(Color color)
         {
-            if (!materialCache.TryGetValue(color, out Material material))
+            if (fallbackMaterial == null)
             {
                 Shader shader = Shader.Find("Unlit/Color");
                 if (shader == null)
                     shader = Shader.Find("Standard");
-
-                material = new Material(shader);
-                material.color = color;
-                materialCache[color] = material;
+                fallbackMaterial = new Material(shader);
             }
 
-            return material;
+            // Shared fallback keeps one material instance; color is set per call only when
+            // no stylization controller exists (editor tooling / tests).
+            fallbackMaterial.color = color;
+            return fallbackMaterial;
         }
     }
 }
