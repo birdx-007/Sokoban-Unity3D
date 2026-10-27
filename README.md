@@ -10,6 +10,16 @@
 
 相机采取3D俯视角（参考《沉星之序》），视野覆盖关卡。
 
+## 成品演示
+
+关卡内操作方式：方向键移动，Z撤销上一步，X重做
+
+![选择关卡](README.assets\选择关卡.png)
+
+![关卡画面](README.assets\关卡画面.png)
+
+![关卡编辑器2](README.assets/关卡编辑器2.png)
+
 ## 框架设计
 
 ### 关卡数据
@@ -54,26 +64,70 @@ XSB语义规定，\# 墙、 地面、. 目标、@ 玩家、$ 箱子、+ 玩家�
 
 #### 关卡校验工具
 
-静态校验（恰好 1 玩家、箱子数 == 目标数、边界闭合）、BFS可达性检查；完整 Solver（成本高、后期再做）。
+静态校验（恰好 1 玩家、箱子数 == 目标数、边界闭合）、BFS可达性检查。
 
 ### 整体架构
 
-分为自上而下依赖的四层，表现（Presentation）、游戏系统（Application）、底层逻辑（Domain）、数据（Data）。
+分为自上而下单向依赖的四层：表现（Presentation）、游戏系统（Application）、底层逻辑（Domain）、数据（Data）。底层逻辑不反向依赖 Unity。
 
-#### 表现
+#### 表现（Gameplay）
 
-依靠unity，负责渲染和表现。包含相机、UI、音频、动画、VFX、风格化渲染（Shader）等。
+- 关卡呈现：`BoardView`（墙/地板/目标/箱子 + 箱子注册表）、`PlayerView`（身体+面部）、`GameplayCamera`。
+- 风格化：`StylizedScheme` / `StylizedController`（toon 参数 + 调色板 + 天空盒 + 后处理，按角色 `MaterialPropertyBlock` 着色）、`Palette`、`PrimitiveFactory`。
+- 音频：`AudioManager`（SFX + 预留 BGM）。
+- UI：`UiFactory`、`MainMenuController`、`LevelSelectController`、`GameplayHud`。
 
-本项目渲染管线为BIRP，不使用Shader Graph。
+#### 游戏系统（Gameplay）
 
-#### 游戏系统
+- 流程：`GameFlow`（FSM：Boot / MainMenu / LevelSelect / Gameplay，常驻 Persistent，异步加卸载叠加场景）、`TransitionOverlay`（过渡遮罩）。
+- 输入：`InputReader`（Input Action Asset、Gameplay/UI map）、`DirectionInput`（2D 向量 → Direction）。
+- 存档：`SaveManager`（persistentDataPath/save.json，记录胜利/进度、解锁、清除）。
+- 关卡访问：`ILevelRepository`、`LevelList`（ScriptableObject）、`LevelListRepository`。
+- 对局驱动：`GameplayBootstrap`（持有 `GameSession`，接线输入/HUD/存档，长按连发，Restart）、`MoveAnimator`、`MoveAnimationConfig`、`BlockFeedbackConfig`、`BoardGeometry`。
 
-依赖unity，负责游戏流程中的整体功能运转。包含游戏流程状态机、UI逻辑管理（如菜单与选关逻辑）、存档、输入管理、关卡场景布设等。
+#### 底层逻辑（Core）
 
-#### 底层逻辑
-
-纯C#逻辑，不依赖unity。负责底层玩法逻辑。包含推箱子规则、游戏状态、撤销/重做（涉及命令模式+栈）等。
+- 数据模型：`LevelData`（name + XSB map）、`LevelJson`；`GridPosition`、`Direction`、`CellType`、`XsbParser`。
+- 规则与状态：`GameState`（LevelData 引用 + 玩家位置/箱子集合/朝向/Moves/Pushes）、`SokobanRules.TryMove`（原子移动，返回 `MoveResult` + `MoveDelta`）、`LevelValidator`（静态校验 + BFS 可达性）。
+- 撤销/重做：`MoveDelta`、`ICommand` / `MoveCommand`、`UndoSystem`（命令双栈，Undo/Redo 返回 `MoveDelta` 供表现层动画）。
+- 会话聚合：`GameSession`（持有 `GameState` + `UndoSystem`，提供 TryMove / Undo / Redo / Reset / ToSnapshot / Restore / TryRestore）。
+- 序列化 DTO：`GridPositionDto`、`MoveDeltaDto`、`RunSnapshot`。
+- 存档模型：`SaveData` / `LevelSaveData` + `SaveJson`。
 
 #### 数据
 
-数据及维护数据的逻辑。包含关卡数据、存档数据及对应的数据维护工具。
+- 关卡内容：`Assets/Data/Levels/Sokoban_LevelNN.json`（XSB + JSON），由编辑器产出。
+- 关卡列表：`Assets/Data/LevelList.asset`（ScriptableObject，有序 `List<TextAsset>` 引用）。
+- 玩家存档：`Application.persistentDataPath/save.json`（`SaveData`：每关 id / 完成 / 最佳步数推数 / 进行中快照）。
+
+#### 编辑器（Editor）
+
+- `LevelEditorWindow`（列表页 ↔ 内容页）、`LevelGrid`（Painter2D 分层笔刷）、`LevelListStore`（创建/命名/写 JSON/回收站删除）、`LevelListInspector`（只读）。
+
+#### 场景结构
+
+| 场景 | 加载方式 | 职责 |
+| --- | --- | --- |
+| `Assets/Scenes/Persistent.unity` | 启动（Build index 0，唯一 active） | GameFlow、EventSystem、InputReader、SaveManager、AudioManager、TransitionOverlay、相机 + 方向光 + PostProcessLayer |
+| `Assets/Scenes/MainMenu.unity` | Additive | 主菜单 |
+| `Assets/Scenes/LevelSelect.unity` | Additive | 选关 |
+| `Assets/Scenes/Gameplay.unity` | Additive | 通用对局场景，按 LevelData 布设 |
+
+Build Settings 含全部 4 个场景（Persistent 启动，其余运行时 Additive 加载）。
+
+#### 运行时数据流
+
+- 关卡：编辑器产出 JSON → `LevelList.asset` 引用 → `GameFlow.LevelList` → `LevelListRepository` → `LevelData` → `GameSession` / `BoardView`。
+- 存档：`GameSession.ToSnapshot()` → `RunSnapshot`（动态状态 + undo/redo 栈）→ `SaveData` → `save.json`；续玩走 `GameSession.TryRestore`。
+- 输入：`InputReader` → `DirectionInput` → `GameplayBootstrap.TryMove` → `GameSession.TryMove` → `MoveAnimator`。
+
+#### 关键设计决策
+
+- 网格：XZ 平面、原点居中、cell=1；`GridPosition`（x 列，y 行），row 0 → +Z。
+- 相机：透视、俯角 75°（近正交）、按关卡包围盒自适应取景。
+- 移动/动画：Domain 瞬时原子；表现层按 `MoveDelta` 动画；推箱锁步共享 pushCurve；移动后极短转向；动画期间锁输入（无缓冲）。
+- 撤销/重做：命令模式双栈，命令存一步差分；Moves/Pushes 随 undo/redo 增减。
+- 输入：新 Input System（Legacy + New 并存）；Move 用 2D 向量（死区 + 主轴 + 垂直优先 + Y 正 = Up）；长按连发（动画锁优先）。
+- 存档续玩：退出时 `moves>0` 存快照、`moves==0` 清进度；胜利更新最佳（取更小）；选关弹「继续 / 重开 / 取消」。
+- 渲染：BIRP 手写 toon Surface Shader + 径向渐变天空盒；后处理 Bloom + Vignette + ACES；shader 已入 Always Included Shaders 防打包裁剪。
+- 场景过渡：Persistent 顶层全屏遮罩，淡入 → 切换 → 淡出。
