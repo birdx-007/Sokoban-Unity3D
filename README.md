@@ -14,9 +14,9 @@
 
 关卡内操作方式：方向键移动，Z撤销上一步，X重做
 
-![选择关卡](README.assets\选择关卡.png)
+![选择关卡](README.assets/选择关卡.png)
 
-![关卡画面](README.assets\关卡画面.png)
+![关卡画面](README.assets/关卡画面.png)
 
 ![关卡编辑器2](README.assets/关卡编辑器2.png)
 
