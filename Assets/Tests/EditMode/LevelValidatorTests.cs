@@ -37,6 +37,16 @@ namespace BoxPushing.Tests
         }
 
         [Test]
+        public void IsValid_NoBoxesOrGoals_ReturnsFalse()
+        {
+            var level = new LevelData("No goals", new[] { "####", "#@ #", "####" });
+            Assert.IsFalse(LevelValidator.IsValid(level));
+            StringAssert.Contains(
+                "Expected at least one box and at least one goal.",
+                string.Join("\n", LevelValidator.GetErrors(level)));
+        }
+
+        [Test]
         public void IsValid_OpenBoundary_ReturnsFalse()
         {
             var level = new LevelData("Open boundary", new[] { "#####", "#.$@ ", "#####" });

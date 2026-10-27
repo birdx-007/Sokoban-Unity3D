@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using BoxPushing.Core;
 using UnityEngine;
@@ -15,11 +16,21 @@ namespace BoxPushing.Gameplay
         [SerializeField] private float tileThickness = 0.05f;
         [SerializeField] private float boxScale = 0.85f;
 
+        [Header("Win Pulse")]
+        [SerializeField] private float winPulseScale = 1.06f;
+        [SerializeField] private float winPulseDuration = 0.24f;
+        [SerializeField] private AnimationCurve winPulseCurve = new AnimationCurve(
+            new Keyframe(0f, 0f),
+            new Keyframe(0.5f, 1f),
+            new Keyframe(1f, 0f));
+
         private readonly Dictionary<GridPosition, GameObject> boxes = new Dictionary<GridPosition, GameObject>();
+        private readonly List<Transform> goalTiles = new List<Transform>();
 
         private LevelData level;
         private Transform staticRoot;
         private Transform boxRoot;
+        private Coroutine winPulseRoutine;
 
         public LevelData Level => level;
         public int Width => level != null ? level.Width : 0;
@@ -47,10 +58,17 @@ namespace BoxPushing.Gameplay
 
         public void Clear()
         {
+            if (winPulseRoutine != null)
+            {
+                StopCoroutine(winPulseRoutine);
+                winPulseRoutine = null;
+            }
+
             DestroyChild(staticRoot);
             DestroyChild(boxRoot);
 
             boxes.Clear();
+            goalTiles.Clear();
             staticRoot = null;
             boxRoot = null;
         }
@@ -132,6 +150,62 @@ namespace BoxPushing.Gameplay
                 && XsbParser.IsGoal(cell);
         }
 
+        /// <summary>
+        /// Plays a single restrained scale pulse on goal tiles and boxes to celebrate a win.
+        /// Targets return to their exact base scales when the pulse finishes.
+        /// </summary>
+        public void PlayWinPulse()
+        {
+            if (winPulseRoutine != null)
+                StopCoroutine(winPulseRoutine);
+
+            winPulseRoutine = StartCoroutine(WinPulseRoutine());
+        }
+
+        private IEnumerator WinPulseRoutine()
+        {
+            var targets = new List<(Transform transform, Vector3 baseScale)>();
+            foreach (Transform tile in goalTiles)
+            {
+                if (tile != null)
+                    targets.Add((tile, tile.localScale));
+            }
+
+            foreach (GameObject box in boxes.Values)
+            {
+                if (box != null)
+                    targets.Add((box.transform, box.transform.localScale));
+            }
+
+            float duration = Mathf.Max(0.0001f, winPulseDuration);
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float k = Mathf.Clamp01(elapsed / duration);
+                float envelope = winPulseCurve != null
+                    ? winPulseCurve.Evaluate(k)
+                    : Mathf.Sin(k * Mathf.PI);
+                float multiplier = 1f + (winPulseScale - 1f) * envelope;
+
+                foreach ((Transform target, Vector3 baseScale) in targets)
+                {
+                    if (target != null)
+                        target.localScale = baseScale * multiplier;
+                }
+
+                yield return null;
+            }
+
+            foreach ((Transform target, Vector3 baseScale) in targets)
+            {
+                if (target != null)
+                    target.localScale = baseScale;
+            }
+
+            winPulseRoutine = null;
+        }
+
         private void BuildStatic(LevelData level)
         {
             for (int y = 0; y < level.Height; y++)
@@ -156,13 +230,16 @@ namespace BoxPushing.Gameplay
                     else
                     {
                         bool isGoal = XsbParser.IsGoal(row[x]);
-                        PrimitiveFactory.Create(
+                        GameObject tile = PrimitiveFactory.Create(
                             isGoal ? "Goal" : "Floor",
                             staticRoot,
                             BoardGeometry.CellToWorld(cell, level.Width, level.Height) + new Vector3(0f, tileThickness * 0.5f, 0f),
                             new Vector3(BoardGeometry.CellSize, tileThickness, BoardGeometry.CellSize),
                             isGoal ? StyledRole.Goal : StyledRole.Floor,
                             PrimitiveFactory.GetCube());
+
+                        if (isGoal)
+                            goalTiles.Add(tile.transform);
                     }
                 }
             }

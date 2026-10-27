@@ -1,3 +1,4 @@
+using System.Collections;
 using BoxPushing.Core;
 using UnityEngine;
 
@@ -12,6 +13,8 @@ namespace BoxPushing.Gameplay
     {
         [SerializeField] private Transform model;
         [SerializeField] private Transform face;
+
+        private Coroutine bounceRoutine;
 
         public Transform Model => model;
         public Transform Face => face;
@@ -60,6 +63,43 @@ namespace BoxPushing.Gameplay
         {
             if (model != null)
                 model.localRotation = Quaternion.Euler(0f, yRotation, 0f);
+        }
+
+        /// <summary>
+        /// Visual-only probe/return bounce toward a blocked direction. It offsets the model
+        /// child (not the root), so it never fights the root position used by movement.
+        /// </summary>
+        public void PlayBlockBounce(Direction direction, BlockFeedbackConfig config)
+        {
+            if (model == null || config == null)
+                return;
+
+            if (bounceRoutine != null)
+                StopCoroutine(bounceRoutine);
+
+            bounceRoutine = StartCoroutine(BounceRoutine(direction, config));
+        }
+
+        private IEnumerator BounceRoutine(Direction direction, BlockFeedbackConfig config)
+        {
+            Vector3 offset = BoardGeometry.ToWorldDirection(direction) * config.amplitude;
+            float duration = Mathf.Max(0.0001f, config.duration);
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float k = Mathf.Clamp01(elapsed / duration);
+                float envelope = config.reboundCurve != null
+                    ? config.reboundCurve.Evaluate(k)
+                    : Mathf.Sin(k * Mathf.PI);
+
+                model.localPosition = offset * envelope;
+                yield return null;
+            }
+
+            model.localPosition = Vector3.zero;
+            bounceRoutine = null;
         }
     }
 }

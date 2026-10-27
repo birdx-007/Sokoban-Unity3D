@@ -12,6 +12,7 @@ namespace BoxPushing.Gameplay
     {
         [SerializeField] private MoveAnimationConfig animationConfig = new MoveAnimationConfig();
         [SerializeField] private GameplayCameraSettings cameraSettings = new GameplayCameraSettings();
+        [SerializeField] private BlockFeedbackConfig blockFeedback = new BlockFeedbackConfig();
 
         [Header("Hold-to-repeat")]
         [SerializeField] private float initialRepeatDelay = 0.3f;
@@ -150,7 +151,15 @@ namespace BoxPushing.Gameplay
 
             (MoveResult result, MoveDelta delta) = session.TryMove(direction);
             if (!result.Success)
+            {
+                OnBlocked(direction);
                 return;
+            }
+
+            if (result.PushedBox)
+                AudioManager.Instance?.PlayPush();
+            else
+                AudioManager.Instance?.PlayMove();
 
             PlayMove(delta);
             RefreshHud();
@@ -204,6 +213,12 @@ namespace BoxPushing.Gameplay
 
         // ---- Presentation helpers ----
 
+        private void OnBlocked(Direction direction)
+        {
+            AudioManager.Instance?.PlayWallHit();
+            player?.PlayBlockBounce(direction, blockFeedback);
+        }
+
         private void PlayMove(MoveDelta delta)
         {
             animator.Play(delta, player, board, animationConfig, () =>
@@ -243,6 +258,9 @@ namespace BoxPushing.Gameplay
             int bestMoves = entry != null && entry.completed ? entry.bestMoves : -1;
             int bestPushes = entry != null && entry.completed ? entry.bestPushes : -1;
             hud?.ShowWin(true, snapshot.moves, snapshot.pushes, bestMoves, bestPushes, GameFlow.Instance?.HasNextLevel ?? false);
+
+            board?.PlayWinPulse();
+            AudioManager.Instance?.PlayWin();
         }
 
         private void SaveProgressIfNeeded()
@@ -251,8 +269,15 @@ namespace BoxPushing.Gameplay
                 return;
 
             progressSaved = true;
-            if (SaveManager.Instance != null && !string.IsNullOrEmpty(levelId))
-                SaveManager.Instance.RecordProgress(levelId, session.ToSnapshot());
+
+            SaveManager saves = SaveManager.Instance;
+            if (saves == null || string.IsNullOrEmpty(levelId))
+                return;
+
+            if (session.State.Moves > 0)
+                saves.RecordProgress(levelId, session.ToSnapshot());
+            else
+                saves.ClearProgress(levelId);
         }
 
         private void DestroyPlayer()

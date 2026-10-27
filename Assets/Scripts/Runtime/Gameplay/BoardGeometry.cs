@@ -24,6 +24,27 @@ namespace BoxPushing.Gameplay
         }
 
         /// <summary>
+        /// Unit world-space direction for a grid direction on the XZ plane. Up=+Z,
+        /// Down=-Z, Right=+X, Left=-X (consistent with <see cref="CellToWorld"/>).
+        /// </summary>
+        public static Vector3 ToWorldDirection(Direction direction)
+        {
+            switch (direction)
+            {
+                case Direction.Up:
+                    return Vector3.forward;
+                case Direction.Down:
+                    return Vector3.back;
+                case Direction.Left:
+                    return Vector3.left;
+                case Direction.Right:
+                    return Vector3.right;
+                default:
+                    return Vector3.forward;
+            }
+        }
+
+        /// <summary>
         /// World Y rotation for a grid-facing direction. Face geometry points along +Z
         /// locally, so Up=0 (toward +Z), Down=180 (toward -Z), Right=90, Left=-90.
         /// </summary>

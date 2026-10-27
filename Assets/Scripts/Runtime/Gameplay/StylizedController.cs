@@ -17,6 +17,10 @@ namespace BoxPushing.Gameplay
         [SerializeField] private StylizedScheme[] schemes = new StylizedScheme[0];
         [SerializeField] private int currentIndex = 0;
 
+        [Header("Shaders")]
+        [SerializeField] private Shader toonShader;
+        [SerializeField] private Shader skyboxShader;
+
         [Header("Post Processing")]
         [Range(0f, 2f)] public float bloomIntensity = 0.25f;
         [Range(0f, 1f)] public float vignetteIntensity = 0.28f;
@@ -260,15 +264,28 @@ namespace BoxPushing.Gameplay
         {
             if (toonMaterial == null)
             {
-                Shader toon = Shader.Find("BoxPushing/Toon");
-                toonMaterial = new Material(toon != null ? toon : Shader.Find("Standard"));
+                Shader toon = toonShader != null ? toonShader : Shader.Find("BoxPushing/Toon");
+                if (toon == null)
+                {
+                    Debug.LogError("StylizedController: toon shader 'BoxPushing/Toon' not found; skipping toon material creation.");
+                }
+                else
+                {
+                    toonMaterial = new Material(toon);
+                }
             }
 
             if (skyboxMaterial == null)
             {
-                Shader sky = Shader.Find("BoxPushing/RadialGradientSkybox");
-                if (sky != null)
+                Shader sky = skyboxShader != null ? skyboxShader : Shader.Find("BoxPushing/RadialGradientSkybox");
+                if (sky == null)
+                {
+                    Debug.LogError("StylizedController: skybox shader 'BoxPushing/RadialGradientSkybox' not found; skipping skybox material creation.");
+                }
+                else
+                {
                     skyboxMaterial = new Material(sky);
+                }
             }
         }
 

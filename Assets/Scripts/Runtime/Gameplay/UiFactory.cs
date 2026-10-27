@@ -124,7 +124,13 @@ namespace BoxPushing.Gameplay
             var button = rect.gameObject.AddComponent<Button>();
             button.targetGraphic = image;
             if (onClick != null)
-                button.onClick.AddListener(onClick);
+            {
+                button.onClick.AddListener(() =>
+                {
+                    AudioManager.Instance?.PlayUiClick();
+                    onClick();
+                });
+            }
 
             Text text = CreateText(rect, "Label", label, fontSize, Color.white, TextAnchor.MiddleCenter);
             Stretch((RectTransform)text.transform, Vector2.zero, Vector2.one, new Vector2(8f, 4f), new Vector2(-8f, -4f));

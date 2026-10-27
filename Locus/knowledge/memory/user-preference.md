@@ -12,4 +12,6 @@ maintenanceRules: |-
   - Remove one-off arrangements, temporary phrasing, and unconfirmed inferences
 ---
 
+- 构建（Build）一律由用户手动完成；不要由我（Locus）执行或发起构建。
+
 

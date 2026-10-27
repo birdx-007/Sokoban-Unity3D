@@ -26,13 +26,19 @@ namespace BoxPushing.Gameplay
             filter.sharedMesh = mesh;
             var renderer = go.AddComponent<MeshRenderer>();
 
-            if (StylizedController.Instance != null)
+            Material toon = StylizedController.Instance != null
+                ? StylizedController.Instance.ToonMaterial
+                : null;
+
+            if (toon != null)
             {
-                renderer.sharedMaterial = StylizedController.Instance.ToonMaterial;
+                renderer.sharedMaterial = toon;
                 StylizedController.Instance.Register(renderer, role);
             }
             else
             {
+                // Toon shader unavailable (stripped build) or no stylization controller:
+                // fall back to the plain per-role color material instead of the toon pipeline.
                 renderer.sharedMaterial = GetFallbackMaterial(Palette.ForRole(role));
             }
 
@@ -65,7 +71,14 @@ namespace BoxPushing.Gameplay
                 Shader shader = Shader.Find("Unlit/Color");
                 if (shader == null)
                     shader = Shader.Find("Standard");
-                fallbackMaterial = new Material(shader);
+                if (shader != null)
+                    fallbackMaterial = new Material(shader);
+            }
+
+            if (fallbackMaterial == null)
+            {
+                Debug.LogError("PrimitiveFactory: no fallback shader ('Unlit/Color' or 'Standard') found; renderer will use Unity's default material.");
+                return null;
             }
 
             // Shared fallback keeps one material instance; color is set per call only when

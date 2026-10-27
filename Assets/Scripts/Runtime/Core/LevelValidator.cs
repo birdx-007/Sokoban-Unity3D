@@ -75,6 +75,9 @@ namespace BoxPushing.Core
             if (boxCount != goalCount)
                 errors.Add($"Box count ({boxCount}) does not equal goal count ({goalCount}).");
 
+            if (boxCount == 0)
+                errors.Add("Expected at least one box and at least one goal.");
+
             if (!boundaryClosed)
                 errors.Add("Boundary is not fully enclosed by walls.");
 

@@ -79,15 +79,13 @@ namespace BoxPushing.Gameplay
         {
             CurrentState = newState;
 
-            if (currentAdditive == sceneName && transitionRoutine == null)
-                return;
-
             if (transitionRoutine != null)
             {
                 StopCoroutine(transitionRoutine);
                 transitionRoutine = null;
             }
 
+            TransitionOverlay.Instance?.Show();
             transitionRoutine = StartCoroutine(SwapAdditiveScene(sceneName));
         }
 
@@ -95,16 +93,21 @@ namespace BoxPushing.Gameplay
         {
             currentAdditive = targetScene;
 
-            // Unload every additive scene except the target. This also cleans up any
-            // scene left behind by a superseded in-flight transition, which is the
-            // source of the occasional "level not laid out" symptom.
+            // Desired sequence: fade in -> swap scenes -> fade out. Wait until the mask
+            // fully covers the outgoing scene before unloading or loading anything.
+            TransitionOverlay overlay = TransitionOverlay.Instance;
+            while (overlay != null && !overlay.IsFullyOpaque)
+                yield return null;
+
+            // Unload every additive scene (including the target when it is already
+            // loaded) so re-entering a scene rebuilds it from scratch. This is required
+            // for next-level: Gameplay must reload so GameplayBootstrap re-runs for the
+            // newly selected level index.
             var toUnload = new List<string>();
             for (int i = 0; i < SceneManager.sceneCount; i++)
             {
                 Scene scene = SceneManager.GetSceneAt(i);
-                if (scene.isLoaded
-                    && scene.name != SceneManager.GetActiveScene().name
-                    && scene.name != targetScene)
+                if (scene.isLoaded && scene.name != SceneManager.GetActiveScene().name)
                 {
                     toUnload.Add(scene.name);
                 }
@@ -117,13 +120,11 @@ namespace BoxPushing.Gameplay
                     yield return unload;
             }
 
-            if (!SceneManager.GetSceneByName(targetScene).isLoaded)
-            {
-                AsyncOperation load = SceneManager.LoadSceneAsync(targetScene, LoadSceneMode.Additive);
-                if (load != null)
-                    yield return load;
-            }
+            AsyncOperation load = SceneManager.LoadSceneAsync(targetScene, LoadSceneMode.Additive);
+            if (load != null)
+                yield return load;
 
+            TransitionOverlay.Instance?.FadeOut();
             transitionRoutine = null;
         }
     }
